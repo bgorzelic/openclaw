@@ -365,6 +365,17 @@ function createClawdisReadTool(base: AnyAgentTool): AnyAgentTool {
   };
 }
 
+function normalizeSurface(surface?: string): string | undefined {
+  const trimmed = surface?.trim().toLowerCase();
+  return trimmed ? trimmed : undefined;
+}
+
+function shouldIncludeDiscordTool(surface?: string): boolean {
+  const normalized = normalizeSurface(surface);
+  if (!normalized) return false;
+  return normalized === "discord" || normalized.startsWith("discord:");
+}
+
 export function createClawdisCodingTools(options?: {
   bash?: BashToolDefaults & ProcessToolDefaults;
   surface?: string;

@@ -74,7 +74,7 @@ describe("createClawdisCodingTools", () => {
 
   it("keeps anyOf variants for non-Gemini providers", () => {
     const tools = createClawdisCodingTools({ provider: "openai" });
-    const browser = tools.find((tool) => tool.name === "browser");
+    const browser = tools.find((tool) => tool.name === "clawdis_browser");
     expect(browser).toBeDefined();
     const parameters = browser?.parameters as {
       anyOf?: Array<{ properties?: Record<string, unknown> }>;
@@ -92,7 +92,7 @@ describe("createClawdisCodingTools", () => {
 
   it("strips anyOf for google-gemini-cli tools", () => {
     const tools = createClawdisCodingTools({ provider: "google-gemini-cli" });
-    const browser = tools.find((tool) => tool.name === "browser");
+    const browser = tools.find((tool) => tool.name === "clawdis_browser");
     expect(browser).toBeDefined();
     const parameters = browser?.parameters as {
       anyOf?: unknown;
@@ -106,7 +106,7 @@ describe("createClawdisCodingTools", () => {
 
   it("strips anyOf for google-antigravity tools", () => {
     const tools = createClawdisCodingTools({ provider: "google-antigravity" });
-    const browser = tools.find((tool) => tool.name === "browser");
+    const browser = tools.find((tool) => tool.name === "clawdis_browser");
     expect(browser).toBeDefined();
     const parameters = browser?.parameters as {
       anyOf?: unknown;
