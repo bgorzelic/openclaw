@@ -260,6 +260,26 @@ struct SettingsTab: View {
                             help: "Enables voice conversation mode with your connected OpenClaw agent.") { newValue in
                                 self.appModel.setTalkEnabled(newValue)
                             }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Talk Voice (Gateway)")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            LabeledContent("Provider", value: "ElevenLabs")
+                            LabeledContent(
+                                "API Key",
+                                value: self.appModel.talkMode.gatewayTalkConfigLoaded
+                                    ? (self.appModel.talkMode.gatewayTalkApiKeyConfigured ? "Configured" : "Not configured")
+                                    : "Not loaded")
+                            LabeledContent(
+                                "Default Model",
+                                value: self.appModel.talkMode.gatewayTalkDefaultModelId ?? "eleven_v3 (fallback)")
+                            LabeledContent(
+                                "Default Voice",
+                                value: self.appModel.talkMode.gatewayTalkDefaultVoiceId ?? "auto (first available)")
+                            Text("Configured on gateway via talk.apiKey, talk.modelId, and talk.voiceId.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                         self.featureToggle(
                             "Background Listening",
                             isOn: self.$talkBackgroundEnabled,
@@ -399,6 +419,9 @@ struct SettingsTab: View {
                 // Keep setup front-and-center when disconnected; keep things compact once connected.
                 self.gatewayExpanded = !self.isGatewayConnected
                 self.selectedAgentPickerId = self.appModel.selectedAgentId ?? ""
+                if self.isGatewayConnected {
+                    self.appModel.reloadTalkConfig()
+                }
             }
             .onChange(of: self.selectedAgentPickerId) { _, newValue in
                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
