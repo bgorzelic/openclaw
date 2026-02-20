@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""
+Generate daily dev summary for Obsidian vault.
+
+Combines agent usage data and git activity into a daily note at
+~/dev/obsidian-vault/Daily/YYYY-MM-DD.md
+
+Usage:
+    python3 obsidian_daily.py --vault ~/dev/obsidian-vault
+    python3 obsidian_daily.py --vault ~/dev/obsidian-vault --date 2026-02-19
+    python3 obsidian_daily.py --dry-run   # Print to stdout without writing
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+
+def run_script(script_path: Path, *args: str) -> dict[str, Any] | None:
+    """Run a sibling script and parse its JSON output."""
+    cmd = ["python3", str(script_path), "--format", "json", *args]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
+        pass
+    return None
+
+
+def format_cost(cost: float) -> str:
+    if cost < 0.01:
+        return f"${cost:.4f}"
+    return f"${cost:.2f}"
+
+
+def format_duration(hours: float) -> str:
+    if hours < 1:
+        return f"{hours * 60:.0f}m"
+    return f"{hours:.1f}h"
+
+
+def generate_daily_note(
+    target_date: date,
+    usage_data: dict[str, Any] | None,
+    git_data: dict[str, Any] | None,
+) -> str:
+    """Generate markdown content for a daily dev summary."""
+    lines: list[str] = []
+    lines.append(f"# Daily Dev Summary — {target_date.isoformat()}")
+    lines.append("")
+
+    # Agent Activity section
+    lines.append("## Agent Activity")
+    if usage_data and usage_data.get("projects"):
+        totals = usage_data.get("totals", {})
+        total_sessions = totals.get("sessions", 0)
+        total_cost = totals.get("estimatedCostUSD", 0)
+        proj_count = len(usage_data["projects"])
+        lines.append(f"- **{total_sessions}** sessions across **{proj_count}** project groups")
+        lines.append(f"- Total estimated cost: **{format_cost(total_cost)}**")
+
+        # Model breakdown
+        all_models: dict[str, float] = {}
+        for proj in usage_data["projects"].values():
+            for model, mdata in proj.get("models", {}).items():
+                all_models[model] = all_models.get(model, 0) + mdata.get("costUSD", 0)
+        if all_models:
+            model_parts = [f"{m}: {format_cost(c)}" for m, c in sorted(all_models.items(), key=lambda x: x[1], reverse=True)]
+            lines.append(f"- Models: {', '.join(model_parts)}")
+    else:
+        lines.append("- No agent sessions recorded")
+    lines.append("")
+
+    # Project Highlights section
+    lines.append("## Project Highlights")
+    has_highlights = False
+
+    if usage_data and usage_data.get("projects"):
+        for name, proj in usage_data["projects"].items():
+            if name.startswith("_"):
+                continue  # Skip _unmatched, _hook:* etc in highlights
+            cost = format_cost(proj["estimatedCostUSD"])
+            hours = format_duration(proj.get("activeTimeHours", 0))
+            lines.append(f"### {name}")
+            lines.append(f"- {proj['sessions']} sessions, {hours} active, {cost}")
+            lines.append("")
+            has_highlights = True
+
+    # Also include hook summaries
+    if usage_data and usage_data.get("projects"):
+        for name, proj in usage_data["projects"].items():
+            if not name.startswith("_hook:"):
+                continue
+            hook_name = name.replace("_hook:", "")
+            cost = format_cost(proj["estimatedCostUSD"])
+            lines.append(f"### Hook: {hook_name}")
+            lines.append(f"- {proj['sessions']} hook runs, {cost}")
+            lines.append("")
+            has_highlights = True
+
+    if not has_highlights:
+        lines.append("_No project-level activity_")
+        lines.append("")
+
+    # Git Activity section
+    lines.append("## Git Activity")
+    if git_data and git_data.get("projects"):
+        totals = git_data.get("totals", {})
+        lines.append(f"- **{totals.get('commits', 0)}** commits across "
+                     f"**{totals.get('activeProjects', 0)}** repos")
+        hours = format_duration(totals.get("estimatedHours", 0))
+        lines.append(f"- Estimated coding time: ~{hours}")
+        lines.append("")
+
+        for proj in git_data["projects"]:
+            if proj["commits"] == 0:
+                continue
+            hours = format_duration(proj["estimatedHours"])
+            lines.append(f"### {proj['name']}")
+            lines.append(f"- {proj['commits']} commits, ~{hours}")
+            for c in proj.get("recentCommits", [])[:3]:
+                lines.append(f"  - `{c['subject'][:70]}`")
+            lines.append("")
+    else:
+        lines.append("_No git activity_")
+        lines.append("")
+
+    # Footer
+    lines.append("---")
+    lines.append(f"_Generated by dev-cockpit at {datetime.now(UTC).strftime('%H:%M UTC')}_")
+
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate daily dev summary for Obsidian.")
+    parser.add_argument("--vault", help="Obsidian vault path (default: ~/dev/obsidian-vault)")
+    parser.add_argument("--date", help="Target date (YYYY-MM-DD or 'today'/'yesterday'). Default: today")
+    parser.add_argument("--dry-run", action="store_true", help="Print to stdout without writing")
+    parser.add_argument("--registry", help="Path to projects.json")
+
+    args = parser.parse_args()
+
+    vault_path = Path(args.vault).expanduser() if args.vault else Path.home() / "dev" / "obsidian-vault"
+
+    # Resolve target date
+    if not args.date or args.date == "today":
+        target_date = date.today()
+    elif args.date == "yesterday":
+        target_date = date.today() - timedelta(days=1)
+    else:
+        target_date = date.fromisoformat(args.date)
+
+    # Run sibling scripts to gather data
+    scripts_dir = Path(__file__).parent
+
+    registry_args = ["--registry", args.registry] if args.registry else []
+
+    usage_data = run_script(
+        scripts_dir / "project_usage.py",
+        "--days", "1",
+        *registry_args,
+    )
+    git_data = run_script(
+        scripts_dir / "git_activity.py",
+        "--days", "1",
+        *registry_args,
+    )
+
+    # Generate note content
+    content = generate_daily_note(target_date, usage_data, git_data)
+
+    if args.dry_run:
+        print(content)
+        return 0
+
+    # Write to vault
+    daily_dir = vault_path / "Daily"
+    daily_dir.mkdir(parents=True, exist_ok=True)
+    note_path = daily_dir / f"{target_date.isoformat()}.md"
+
+    # If note already exists, append the summary section
+    if note_path.exists():
+        existing = note_path.read_text()
+        if "## Agent Activity" in existing:
+            print(f"Daily note already has agent activity: {note_path}")
+            print("Use --dry-run to preview without writing")
+            return 0
+        content = existing.rstrip() + "\n\n" + content
+
+    note_path.write_text(content + "\n")
+    print(f"Wrote daily summary to {note_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
