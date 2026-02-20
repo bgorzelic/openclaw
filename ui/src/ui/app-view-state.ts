@@ -3,6 +3,11 @@ import type { CompactionStatus, FallbackStatus } from "./app-tool-stream.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type {
+  GitActivityResult,
+  ProjectRegistry,
+  ProjectUsageResult,
+} from "./controllers/projects.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
 import type { Tab } from "./navigation.ts";
@@ -150,6 +155,14 @@ export type AppViewState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  projectsLoading: boolean;
+  projectsScanning: boolean;
+  projectsRegistry: ProjectRegistry | null;
+  projectsUsage: ProjectUsageResult | null;
+  projectsGit: GitActivityResult | null;
+  projectsError: string | null;
+  projectsDays: number;
+
   usageLoading: boolean;
   usageResult: SessionsUsageResult | null;
   usageCostSummary: CostUsageSummary | null;

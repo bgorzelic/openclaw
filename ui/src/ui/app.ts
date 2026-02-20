@@ -238,6 +238,14 @@ export class OpenClawApp extends LitElement {
   @state() sessionsIncludeGlobal = true;
   @state() sessionsIncludeUnknown = false;
 
+  @state() projectsLoading = false;
+  @state() projectsScanning = false;
+  @state() projectsRegistry: import("./controllers/projects.js").ProjectRegistry | null = null;
+  @state() projectsUsage: import("./controllers/projects.js").ProjectUsageResult | null = null;
+  @state() projectsGit: import("./controllers/projects.js").GitActivityResult | null = null;
+  @state() projectsError: string | null = null;
+  @state() projectsDays = 30;
+
   @state() usageLoading = false;
   @state() usageResult: import("./types.js").SessionsUsageResult | null = null;
   @state() usageCostSummary: import("./types.js").CostUsageSummary | null = null;

@@ -44,6 +44,7 @@ import {
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
+import { loadProjects, scanProjects, toggleProject } from "./controllers/projects.ts";
 import { deleteSessionAndRefresh, loadSessions, patchSession } from "./controllers/sessions.ts";
 import {
   installSkill,
@@ -66,6 +67,7 @@ import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
 import { renderOverview } from "./views/overview.ts";
+import { renderProjects } from "./views/projects.ts";
 import { renderSessions } from "./views/sessions.ts";
 import { renderSkills } from "./views/skills.ts";
 
@@ -320,6 +322,27 @@ export function renderApp(state: AppViewState) {
         }
 
         ${renderUsageTab(state)}
+
+        ${
+          state.tab === "projects"
+            ? renderProjects({
+                loading: state.projectsLoading,
+                scanning: state.projectsScanning,
+                registry: state.projectsRegistry,
+                usage: state.projectsUsage,
+                git: state.projectsGit,
+                error: state.projectsError,
+                days: state.projectsDays,
+                onRefresh: () => loadProjects(state),
+                onScan: () => scanProjects(state),
+                onDaysChange: (days) => {
+                  state.projectsDays = days;
+                  void loadProjects(state);
+                },
+                onToggle: (project, enabled) => toggleProject(state, project, enabled),
+              })
+            : nothing
+        }
 
         ${
           state.tab === "cron"
