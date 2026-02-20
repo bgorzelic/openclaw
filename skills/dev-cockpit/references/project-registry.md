@@ -8,10 +8,10 @@ The project registry at `~/.openclaw/cockpit/projects.json` maps local git repos
 {
   "version": 1,
   "scannedAt": "2026-02-20T17:00:00Z",
-  "scanRoots": ["/Users/bgorzelic/dev"],
+  "scanRoots": ["~/dev"],
   "projects": {
     "openclaw": {
-      "path": "/Users/bgorzelic/dev/projects/openclaw",
+      "path": "~/dev/projects/openclaw",
       "enabled": true,
       "tags": ["typescript", "agent-framework"],
       "language": "typescript",
@@ -19,7 +19,7 @@ The project registry at `~/.openclaw/cockpit/projects.json` maps local git repos
       "description": "OpenClaw agent framework"
     },
     "exemplary-terra-gcp": {
-      "path": "/Users/bgorzelic/dev/projects/exemplary-terra-gcp",
+      "path": "~/dev/projects/exemplary-terra-gcp",
       "enabled": true,
       "tags": ["terraform", "gcp"],
       "language": "python",
@@ -68,6 +68,6 @@ Sessions are matched to projects using **longest-prefix match** on the `cwd` fie
 
 Example:
 
-- Session cwd: `/Users/bgorzelic/dev/projects/openclaw/ui`
-- Project path: `/Users/bgorzelic/dev/projects/openclaw`
+- Session cwd: `~/dev/projects/openclaw/ui`
+- Project path: `~/dev/projects/openclaw`
 - Match: `openclaw` (longest prefix)

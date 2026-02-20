@@ -17,8 +17,26 @@ function resolveScriptsDir(): string {
   return path.join(root, "skills", "dev-cockpit", "scripts");
 }
 
-const COCKPIT_DIR = path.join(process.env.HOME ?? "/tmp", ".openclaw", "cockpit");
+const HOME = process.env.HOME ?? "/tmp";
+const COCKPIT_DIR = path.join(HOME, ".openclaw", "cockpit");
 const REGISTRY_PATH = path.join(COCKPIT_DIR, "projects.json");
+
+// Only allow scanning within the user's home directory to prevent path traversal
+function sanitizePath(p: string): string | null {
+  const resolved = path.resolve(p);
+  if (!resolved.startsWith(HOME + "/") && resolved !== HOME) {
+    return null;
+  }
+  return resolved;
+}
+
+// Reject project names with path separators or traversal sequences
+function sanitizeProjectName(name: string): string | null {
+  if (/[/\\]|\.\./.test(name)) {
+    return null;
+  }
+  return name;
+}
 
 async function runPythonScript(scriptName: string, args: string[]): Promise<unknown> {
   const scriptsDir = resolveScriptsDir();
@@ -66,7 +84,12 @@ export const projectsHandlers: GatewayRequestHandlers = {
         args.push("--days", String(params.days));
       }
       if (typeof params?.project === "string") {
-        args.push("--project", params.project);
+        const name = sanitizeProjectName(params.project);
+        if (!name) {
+          respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Invalid project name"));
+          return;
+        }
+        args.push("--project", name);
       }
       const result = await runPythonScript("project_usage.py", args);
       respond(true, result);
@@ -82,9 +105,21 @@ export const projectsHandlers: GatewayRequestHandlers = {
   "projects.scan": async ({ respond, params }) => {
     try {
       const args = ["--output", REGISTRY_PATH];
-      const roots = Array.isArray(params?.roots)
+      const rawRoots = Array.isArray(params?.roots)
         ? (params.roots as string[])
-        : [path.join(process.env.HOME ?? "/tmp", "dev")];
+        : [path.join(HOME, "dev")];
+      const roots = rawRoots
+        .filter((r): r is string => typeof r === "string")
+        .map(sanitizePath)
+        .filter((r): r is string => r !== null);
+      if (roots.length === 0) {
+        respond(
+          false,
+          undefined,
+          errorShape(ErrorCodes.INVALID_REQUEST, "No valid roots after path validation"),
+        );
+        return;
+      }
       for (const root of roots) {
         args.push("--root", root);
       }
@@ -155,7 +190,12 @@ export const projectsHandlers: GatewayRequestHandlers = {
         args.push("--days", String(params.days));
       }
       if (typeof params?.project === "string") {
-        args.push("--project", params.project);
+        const name = sanitizeProjectName(params.project);
+        if (!name) {
+          respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "Invalid project name"));
+          return;
+        }
+        args.push("--project", name);
       }
       const result = await runPythonScript("git_activity.py", args);
       respond(true, result);
