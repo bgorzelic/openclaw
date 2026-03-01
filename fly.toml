@@ -1,7 +1,7 @@
 # OpenClaw Fly.io deployment configuration
 # See https://fly.io/docs/reference/configuration/
 
-app = "openclaw-lrartw"
+app = "openclaw-gw"
 primary_region = "lax"
 
 [build]
