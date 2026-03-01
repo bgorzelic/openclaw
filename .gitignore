@@ -121,3 +121,6 @@ dist/protocol.schema.json
 
 # Synthing
 **/.stfolder/
+
+# Local Docker env (contains gateway token)
+.env.docker
