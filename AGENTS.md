@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Repository Guidelines
 
 - Repo: https://github.com/openclaw/openclaw
